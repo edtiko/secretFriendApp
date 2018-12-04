@@ -5,6 +5,10 @@ var styles = `<style> h1 {
     animation-duration: 3s;
     animation-name: slidein;
   }
+  body {
+    background-size:     cover;    
+    background-position: center center;  
+}
   canvas {
     position: absolute;
     top: 0;
@@ -151,9 +155,25 @@ exports.get_secret_friend = function (req, res, next) {
     '</html> ';
     Friend.findOne({ id: req.params.id, idFriend: { $ne: null } }, function (error_existe, existe) {
         if (existe != null) {
-            res.send("Ya tienes amigo secreto!");
+            Friend.findOne({ id: existe.id }, function (e, fe) {
+            fs.readFile(
+                './controllers/secretFriend.jpg', 'base64',
+                (err, base64Image) => {
+                  //Create a data URL
+                  const dataUrl = `data:image/jpeg;base64, ${base64Image}`
+                  var html = `<html>`+styles+
+                  `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
+                    <h1 style="color:white; padding-left: 50px;">Tú amigo secreto es `+fe.name+`.</h1>
+                    <canvas id='snow'></canvas>`  
+                    +scriptjs+
+                    `</body>
+                    </html> `;
+              
+                 res.send(html);
+                });
+            });
         } else {
-            Friend.count({ idFriend: null }, function (err, count) {
+            Friend.count({ id: { $ne: req.params.id }}, function (err, count) {
                 if (err) return next(err);
                 var r = Math.floor(Math.random() * count);
                 Friend.findOne({ idFriend: null, id: { $ne: req.params.id } }).limit(1).skip(r).exec(
@@ -169,16 +189,31 @@ exports.get_secret_friend = function (req, res, next) {
                               //Create a data URL
                               const dataUrl = `data:image/jpeg;base64, ${base64Image}`
                               var html = `<html>`+styles+
-                                `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>`+
-                                `<h1 style="color:white; padding-left: 50px;">Tú amigo secreto es</br>`+result.name+`.</h1>`+
-                                `</body>`+
-                                `</html> `;
+                              `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
+                                <h1 style="color:white; padding-left: 50px;">Tú amigo secreto es `+result.name+`.</h1>
+                                <canvas id='snow'></canvas>`  
+                                +scriptjs+
+                                `</body>
+                                </html> `;
                           
                              res.send(html);
                             });
                     }else{
-                        msg = "Ya no hay amigos secretos disponibles, lo siento!";
-                        res.send(html);
+                        fs.readFile(
+                            './controllers/secretFriend.jpg', 'base64',
+                            (err, base64Image) => {
+                              //Create a data URL
+                              const dataUrl = `data:image/jpeg;base64, ${base64Image}`
+                              var html = `<html>`+styles+
+                                `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
+                                <h1 style="color:white; padding-left: 50px;">Ya no hay amigos secretos disponibles.</h1>
+                                 <canvas id='snow'></canvas> ` 
+                                +scriptjs+
+                                `</body>
+                                 </html> `;
+                          
+                             res.send(html);
+                            });
                     }
                     }
                 );
