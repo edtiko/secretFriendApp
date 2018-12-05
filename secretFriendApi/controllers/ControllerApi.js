@@ -1,5 +1,5 @@
 var model = require('../models/friend');
-const fs =  require('fs');
+const fs = require('fs');
 var Friend = model.Friend;
 var styles = `<style> h1 {
     animation-duration: 3s;
@@ -25,7 +25,7 @@ var styles = `<style> h1 {
     }
   } </style>`;
 
-  var scriptjs = `<script> 
+var scriptjs = `<script> 
   var canvas = document.getElementById('snow');
   var ctx = canvas.getContext('2d');
   
@@ -86,22 +86,23 @@ var styles = `<style> h1 {
     }
   } </script>`;
 
+
 //Simple version, without validation or sanitation
 exports.test = function (req, res) {
     fs.readFile(
         './controllers/secretFriend.jpg', 'base64',
         (err, base64Image) => {
-      // 2. Create a data URL
-          const dataUrl = `data:image/jpeg;base64, ${base64Image}`
-            var html = `<html>`+styles+
-            `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
+            // 2. Create a data URL
+            const dataUrl = `data:image/jpeg;base64, ${base64Image}`
+            var html = `<html>` + styles +
+                `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
             <h1 style="color:white; padding-left: 50px;">Tú amigo secreto es</br> Camilo Salazar.</h1>
             <canvas id='snow'></canvas> `
-             +scriptjs+
-             `</body>
+                + scriptjs +
+                `</body>
             </html> `;
-      
-         res.send(html);
+
+            res.send(html);
         }
     );
 };
@@ -146,80 +147,93 @@ exports.get_friend = function (req, res, next) {
 };
 
 exports.get_secret_friend = function (req, res, next) {
-    var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-    var msg = '';
-    var html = '<html>'+
-    '<body background="views/secretFriend.jpg" style="background-repeat: no-repeat">'+
-    '<h1 style="color:white;">' +msg+'.</h1>'+
-    '</body>'+
-    '</html> ';
-    Friend.findOne({ id: req.params.id, idFriend: { $ne: null } }, function (error_existe, existe) {
-        if (existe != null) {
-            Friend.findOne({ id: existe.id }, function (e, fe) {
-            fs.readFile(
-                './controllers/secretFriend.jpg', 'base64',
-                (err, base64Image) => {
-                  //Create a data URL
-                  const dataUrl = `data:image/jpeg;base64, ${base64Image}`
-                  var html = `<html>`+styles+
-                  `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
-                    <h1 style="color:white; padding-left: 50px;">Tú amigo secreto es `+fe.name+`.</h1>
-                    <canvas id='snow'></canvas>`  
-                    +scriptjs+
-                    `</body>
+    Friend.find(function (err, friend_list) {
+        if (err) return next(err);
+        var selected = [];
+        var friends = [];
+        for (i = 0; i < friend_list.length; i++) {
+            if (friend_list[i].idFriend != null) {
+                selected[i] = friend_list[i].idFriend;
+            }
+        }
+        console.log(selected);
+        fs.readFile(
+            './controllers/secretFriend.jpg', 'base64',
+            (err, base64Image) => {
+                const dataUrl = `data:image/jpeg;base64, ${base64Image}`
+
+                Friend.findOne({ id: req.params.id, idFriend: { $ne: null } }, function (error_existe, existe) {
+                    if (existe != null) {
+                        Friend.findOne({ id: existe.idFriend }, function (e, fe) {
+                            msg = 'Ya tienes amigo secreto, es ' + fe.name;
+                            var html = `<html>` + styles +
+                                `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
+                    <h1 style="color:white; padding-left: 50px;">`+ msg + `.</h1>
+                    <canvas id='snow'></canvas>`
+                                + scriptjs +
+                                `</body>
                     </html> `;
-              
-                 res.send(html);
+                            res.send(html);
+                        });
+                    } else {
+                        Friend.find({ id: { $ne: req.params.id }},
+                            function (err, result) {
+                                if (result != null) {
+                                    var a = [];
+                                    var frien = [];
+                                    for (i = 0; i < result.length; i++) {
+                                        a[i] = result[i].id;
+                                    }
+                                    var randomValue =  a[Math.floor(a.length * Math.random())];
+                                    
+                                    console.log(randomValue);
+                                    if(selected.length > 0){
+                                      for(i=0; i< a.length; i++){
+                                        var is = false;
+                                        for(j=0; j< selected.length; j++){
+                                            if(a[i]==selected[j]){
+                                             is = true;
+                                            }
+                                        }
+                                        if(!is){
+                                            frien.push(a[i]);
+                                        }
+                                      }
+                                     randomValue = frien[Math.floor(frien.length * Math.random())];
+                                    }
+                                  
+                                    Friend.findOneAndUpdate({ id: req.params.id }, { idFriend: randomValue }, function (err, friend) {
+                                      Friend.findOne({id:randomValue},function(e, r){
+                                        msg = 'Tú amigo secreto es ' + r.name;
+                                        var html = `<html>` + styles +
+                                            `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
+                        <h1 style="color:white; padding-left: 50px;">`+ msg + `.</h1>
+                        <canvas id='snow'></canvas>`
+                                            + scriptjs +
+                                            `</body>
+                        </html> `;
+                                        res.send(html);
+                                      });
+                                        
+                                    });
+
+                                } else {
+                                    msg = 'Ya no hay amigos secretos disponibles.';
+                                    var html = `<html>` + styles +
+                                        `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
+                                <h1 style="color:white; padding-left: 50px;">`+ msg + `.</h1>
+                                <canvas id='snow'></canvas>`
+                                        + scriptjs +
+                                        `</body>
+                                </html> `;
+                                    res.send(html);
+                                }
+                            }
+                        );
+                    }
                 });
             });
-        } else {
-            Friend.count({ id: { $ne: req.params.id }}, function (err, count) {
-                if (err) return next(err);
-                var r = Math.floor(Math.random() * count);
-                Friend.findOne({ idFriend: null, id: { $ne: req.params.id } }).limit(1).skip(r).exec(
-                    function (err, result) {
-                        if(result != null){
-                        Friend.findOneAndUpdate({ id: req.params.id }, { idFriend: result.id }, function (err, friend) {
-                            if (err) return next(err);
-                        });
 
-                        fs.readFile(
-                            './controllers/secretFriend.jpg', 'base64',
-                            (err, base64Image) => {
-                              //Create a data URL
-                              const dataUrl = `data:image/jpeg;base64, ${base64Image}`
-                              var html = `<html>`+styles+
-                              `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
-                                <h1 style="color:white; padding-left: 50px;">Tú amigo secreto es `+result.name+`.</h1>
-                                <canvas id='snow'></canvas>`  
-                                +scriptjs+
-                                `</body>
-                                </html> `;
-                          
-                             res.send(html);
-                            });
-                    }else{
-                        fs.readFile(
-                            './controllers/secretFriend.jpg', 'base64',
-                            (err, base64Image) => {
-                              //Create a data URL
-                              const dataUrl = `data:image/jpeg;base64, ${base64Image}`
-                              var html = `<html>`+styles+
-                                `<body background="${dataUrl}" style="background-repeat: no-repeat"></br></br></br></br>
-                                <h1 style="color:white; padding-left: 50px;">Ya no hay amigos secretos disponibles.</h1>
-                                 <canvas id='snow'></canvas> ` 
-                                +scriptjs+
-                                `</body>
-                                 </html> `;
-                          
-                             res.send(html);
-                            });
-                    }
-                    }
-                );
-
-            });
-        }
     });
 };
 
